@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RetailMind AI — Semantic Product Knowledge Engine</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="36" height="36" rx="10" fill="#e8521a"/>
+            <path d="M10 12h16M10 18h10M10 24h13" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="27" cy="24" r="4.5" fill="#fff"/>
+            <path d="M25.5 24h3M27 22.5v3" stroke="#e8521a" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-name">RetailMind <span>AI</span></div>
+          <div class="brand-sub">Semantic Product Knowledge Engine</div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="dataset-badge" title="Shopify/product-catalogue — 48k real products, Apache-2.0">
+          <svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 5v5c0 3.55 2.96 6.88 7 7.93C13.04 16.88 16 13.55 16 10V5L9 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          Shopify Dataset
+        </div>
+        <div class="status-pill">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Connecting…</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main layout ─────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <p class="sidebar-label">Sample Queries</p>
+      <ul class="suggestions">
+        <li class="sug-chip" onclick="fillQuery(this)">Comfortable running shoes for women</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Organic cotton baby clothing</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Waterproof hiking backpack</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Wireless noise cancelling headphones</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Luxury leather handbag for office</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Anti-aging face cream ingredients</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Sustainable yoga mat eco-friendly</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Gift for kids birthday under $30</li>
+      </ul>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-info">
+        <p class="info-label">Dataset</p>
+        <div class="dataset-card">
+          <div class="dc-row"><span class="dc-key">Source</span><span class="dc-val">Shopify Inc.</span></div>
+          <div class="dc-row"><span class="dc-key">Records</span><span class="dc-val">48,300 products</span></div>
+          <div class="dc-row"><span class="dc-key">Indexed</span><span class="dc-val" id="indexedCount">—</span></div>
+          <div class="dc-row"><span class="dc-key">License</span><span class="dc-val">Apache-2.0</span></div>
+          <div class="dc-row"><span class="dc-key">Embedding</span><span class="dc-val">all-mpnet-base-v2</span></div>
+          <div class="dc-row"><span class="dc-key">Index</span><span class="dc-val">FAISS + Cosine</span></div>
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-info">
+        <p class="info-label">How It Works</p>
+        <ol class="info-steps">
+          <li>Query is encoded into a 768-dim vector using <em>all-mpnet-base-v2</em></li>
+          <li>FAISS performs exact cosine-similarity search over 5,000+ Shopify products</li>
+          <li>Top-5 results are synthesised into a structured answer with relevance scores</li>
+        </ol>
+      </div>
+    </aside>
+
+    <!-- Chat panel -->
+    <section class="chat-panel">
+      <div class="chat-window" id="chatWindow">
+        <div class="message bot-message welcome">
+          <div class="avatar bot-avatar">R</div>
+          <div class="bubble">
+            <p>Hello! I'm <strong>RetailMind AI</strong>, a semantic product search assistant powered by the <strong>Shopify/product-catalogue</strong> dataset — 48,300 real products across fashion, electronics, beauty, sports, home décor, and more.</p>
+            <p>Ask me anything: product recommendations, brand comparisons, materials, use cases, or categories.</p>
+            <p class="loading-note" id="indexNote">
+              ⏳ <strong>Building FAISS index in background.</strong>
+              The first run encodes 5,000 products with <em>all-mpnet-base-v2</em>.
+              This takes 3–8 minutes on CPU. Please wait — status shows above.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea
+            id="queryInput"
+            class="query-input"
+            placeholder="Describe what you're looking for — product, use case, material, or category…"
+            rows="1"
+          ></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendQuery()" title="Send (Ctrl+Enter)">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <p class="input-hint">
+          <kbd>Ctrl+Enter</kbd> to send &nbsp;·&nbsp;
+          Powered by FAISS + SentenceTransformers + Shopify Dataset
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+  // ── Status polling ─────────────────────────────────────────────────────────
+  const statusDot  = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const indexNote  = document.getElementById('indexNote');
+  const indexedCount = document.getElementById('indexedCount');
+
+  let indexReady = false;
+  let poller;
+
+  function pollStatus() {
+    fetch('/index-status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.ready) {
+          indexReady = true;
+          statusDot.className   = 'status-dot dot-green';
+          statusText.textContent = `Ready · ${data.stats?.products?.toLocaleString() ?? ''} products`;
+          if (indexNote) indexNote.style.display = 'none';
+          if (data.stats?.products) {
+            indexedCount.textContent = data.stats.products.toLocaleString();
+          }
+          clearInterval(poller);
+        } else if (data.error) {
+          statusDot.className   = 'status-dot dot-red';
+          statusText.textContent = 'Index error';
+        } else {
+          statusDot.className   = 'status-dot dot-amber';
+          statusText.textContent = `Indexing… (${Math.round(data.elapsed ?? 0)}s)`;
+        }
+      })
+      .catch(() => {
+        statusDot.className   = 'status-dot dot-red';
+        statusText.textContent = 'Server offline';
+      });
+  }
+
+  poller = setInterval(pollStatus, 2500);
+  pollStatus();
+
+  // ── Chat helpers ───────────────────────────────────────────────────────────
+  const chatWindow = document.getElementById('chatWindow');
+  const queryInput = document.getElementById('queryInput');
+  const sendBtn    = document.getElementById('sendBtn');
+
+  function scrollToBottom() {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  function appendMessage(role, htmlContent) {
+    const isBot   = role === 'bot';
+    const wrapper = document.createElement('div');
+    wrapper.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${isBot ? 'bot-avatar' : 'user-avatar'}`;
+    avatar.textContent = isBot ? 'R' : 'U';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = htmlContent;
+
+    if (isBot) {
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(bubble);
+    } else {
+      wrapper.appendChild(bubble);
+      wrapper.appendChild(avatar);
+    }
+
+    chatWindow.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
+  }
+
+  function appendTyping() {
+    const w = document.createElement('div');
+    w.className = 'message bot-message typing-msg';
+    w.innerHTML = `
+      <div class="avatar bot-avatar">R</div>
+      <div class="bubble typing-bubble">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>`;
+    chatWindow.appendChild(w);
+    scrollToBottom();
+    return w;
+  }
+
+  // Convert the plain-text answer format into structured HTML
+  function formatAnswer(rawAnswer, sources) {
+    const lines  = rawAnswer.split('\n');
+    let   output = '';
+
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) { output += '<br/>'; continue; }
+
+      if (line === '---') {
+        output += '<hr/>';
+        continue;
+      }
+
+      // **Bold text** — headings / product names
+      line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+      // Lines that start the product block (numbered)
+      if (/^\d+\./.test(line)) {
+        output += `<div class="result-title">${line}</div>`;
+      } else if (line.startsWith('Brand:') || line.startsWith('Category:') || line.startsWith('Condition:')) {
+        const [key, ...rest] = line.split(':');
+        output += `<div class="result-meta"><span class="meta-key">${key}:</span> ${rest.join(':').trim()}</div>`;
+      } else if (line.startsWith('Relevance:') || line.includes('Relevance:')) {
+        output += `<div class="result-meta">${line}</div>`;
+      } else if (line.startsWith('Details:')) {
+        output += `<div class="result-desc">${line.replace('Details:', '<span class="meta-key">Details:</span>')}</div>`;
+      } else {
+        output += `<p>${line}</p>`;
+      }
+    }
+
+    // Source tags
+    if (sources && sources.length) {
+      output += `<div class="sources"><span class="src-label">Sources:</span> ${
+        sources.map(s => `<span class="src-tag">${s}</span>`).join(' ')
+      }</div>`;
+    }
+
+    return output;
+  }
+
+  // ── Send query ─────────────────────────────────────────────────────────────
+  async function sendQuery() {
+    const query = queryInput.value.trim();
+    if (!query) return;
+
+    appendMessage('user', `<p>${query}</p>`);
+    queryInput.value = '';
+    queryInput.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    const typingEl = appendTyping();
+
+    try {
+      const resp = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, top_k: 5 }),
+      });
+      const data = await resp.json();
+      typingEl.remove();
+
+      if (data.error) {
+        appendMessage('bot', `<p class="error-msg">⚠️ ${data.error}</p>`);
+      } else {
+        appendMessage('bot', formatAnswer(data.answer, data.sources));
+      }
+    } catch (err) {
+      typingEl.remove();
+      appendMessage('bot', `<p class="error-msg">⚠️ Network error. Is the Flask server running?</p>`);
+    }
+
+    sendBtn.disabled = false;
+  }
+
+  // ── Suggestion chips ───────────────────────────────────────────────────────
+  function fillQuery(el) {
+    queryInput.value = el.textContent.trim();
+    queryInput.focus();
+    autoResize();
+  }
+
+  // ── Auto-resize textarea ───────────────────────────────────────────────────
+  function autoResize() {
+    queryInput.style.height = 'auto';
+    queryInput.style.height = Math.min(queryInput.scrollHeight, 160) + 'px';
+  }
+
+  queryInput.addEventListener('input', autoResize);
+  queryInput.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      sendQuery();
+    }
+  });
+  </script>
+</body>
+</html> 
