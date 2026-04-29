@@ -468,28 +468,3 @@ Reduce `MAX_PRODUCTS` in `data_loader.py` or reduce `batch_size` in `rag_pipelin
 Check your internet connection. The Shopify dataset is ~250 MB and requires access to `huggingface.co`.
 
 ---
-
-## Academic / Project Citations
-
-If using this project in a university submission, you may cite:
-
-```
-Dataset:
-Shopify Inc. (2024). Shopify Product Catalogue.
-HuggingFace Datasets. https://huggingface.co/datasets/Shopify/product-catalogue
-License: Apache-2.0
-
-Embedding Model:
-Reimers, N. & Gurevych, I. (2019). Sentence-BERT: Sentence Embeddings
-using Siamese BERT-Networks. EMNLP 2019.
-https://arxiv.org/abs/1908.10084
-
-Vector Search:
-Johnson, J., Douze, M., & Jégou, H. (2019). Billion-scale similarity search
-with GPUs. IEEE Transactions on Big Data.
-https://arxiv.org/abs/1702.08734
-```
-
----
-
-*Built with Flask · FAISS · SentenceTransformers · Shopify Dataset*
