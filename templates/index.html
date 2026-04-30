@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RetailMind AI — Semantic Product Knowledge Engine</title>
+  <title>RetailMind AI — Product Knowledge Engine</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,22 +17,22 @@
       <div class="brand">
         <div class="brand-icon">
           <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="36" height="36" rx="10" fill="#e8521a"/>
+            <rect width="36" height="36" rx="10" fill="#1a56db"/>
             <path d="M10 12h16M10 18h10M10 24h13" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
             <circle cx="27" cy="24" r="4.5" fill="#fff"/>
-            <path d="M25.5 24h3M27 22.5v3" stroke="#e8521a" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M25.5 24h3M27 22.5v3" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </div>
         <div>
           <div class="brand-name">RetailMind <span>AI</span></div>
-          <div class="brand-sub">Semantic Product Knowledge Engine</div>
+          <div class="brand-sub">Customer Support Knowledge Engine</div>
         </div>
       </div>
 
       <div class="header-right">
-        <div class="dataset-badge" title="Shopify/product-catalogue — 48k real products, Apache-2.0">
-          <svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 5v5c0 3.55 2.96 6.88 7 7.93C13.04 16.88 16 13.55 16 10V5L9 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-          Shopify Dataset
+        <div class="index-badge" title="HNSW vector index — cosine similarity">
+          <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 9h6M9 6v6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          HNSW Index
         </div>
         <div class="status-pill">
           <span class="status-dot" id="statusDot"></span>
@@ -49,39 +49,32 @@
     <aside class="sidebar">
       <p class="sidebar-label">Sample Queries</p>
       <ul class="suggestions">
-        <li class="sug-chip" onclick="fillQuery(this)">Comfortable running shoes for women</li>
-        <li class="sug-chip" onclick="fillQuery(this)">Organic cotton baby clothing</li>
-        <li class="sug-chip" onclick="fillQuery(this)">Waterproof hiking backpack</li>
-        <li class="sug-chip" onclick="fillQuery(this)">Wireless noise cancelling headphones</li>
-        <li class="sug-chip" onclick="fillQuery(this)">Luxury leather handbag for office</li>
-        <li class="sug-chip" onclick="fillQuery(this)">Anti-aging face cream ingredients</li>
-        <li class="sug-chip" onclick="fillQuery(this)">Sustainable yoga mat eco-friendly</li>
-        <li class="sug-chip" onclick="fillQuery(this)">Gift for kids birthday under $30</li>
+        <li class="sug-chip" onclick="fillQuery(this)">What is the return policy for electronics?</li>
+        <li class="sug-chip" onclick="fillQuery(this)">How do I claim warranty for a defective product?</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Can I cancel my order after it has shipped?</li>
+        <li class="sug-chip" onclick="fillQuery(this)">My product is not compatible with my device</li>
+        <li class="sug-chip" onclick="fillQuery(this)">How long does a refund take to process?</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Product damaged during delivery, what to do?</li>
+        <li class="sug-chip" onclick="fillQuery(this)">How to change my delivery address after ordering?</li>
+        <li class="sug-chip" onclick="fillQuery(this)">Payment failed but amount was deducted</li>
       </ul>
 
+     
+
       <div class="sidebar-divider"></div>
 
       <div class="sidebar-info">
-        <p class="info-label">Dataset</p>
-        <div class="dataset-card">
-          <div class="dc-row"><span class="dc-key">Source</span><span class="dc-val">Shopify Inc.</span></div>
-          <div class="dc-row"><span class="dc-key">Records</span><span class="dc-val">48,300 products</span></div>
-          <div class="dc-row"><span class="dc-key">Indexed</span><span class="dc-val" id="indexedCount">—</span></div>
-          <div class="dc-row"><span class="dc-key">License</span><span class="dc-val">Apache-2.0</span></div>
-          <div class="dc-row"><span class="dc-key">Embedding</span><span class="dc-val">all-mpnet-base-v2</span></div>
-          <div class="dc-row"><span class="dc-key">Index</span><span class="dc-val">FAISS + Cosine</span></div>
+        <p class="info-label">Topics Covered</p>
+        <div class="topic-pills">
+          <span class="topic-pill">Returns &amp; Refunds</span>
+          <span class="topic-pill">Warranty Claims</span>
+          <span class="topic-pill">Order Cancellation</span>
+          <span class="topic-pill">Shipping &amp; Delivery</span>
+          <span class="topic-pill">Compatibility</span>
+          <span class="topic-pill">Payment Issues</span>
+          <span class="topic-pill">Account Access</span>
+          <span class="topic-pill">Product Specs</span>
         </div>
-      </div>
-
-      <div class="sidebar-divider"></div>
-
-      <div class="sidebar-info">
-        <p class="info-label">How It Works</p>
-        <ol class="info-steps">
-          <li>Query is encoded into a 768-dim vector using <em>all-mpnet-base-v2</em></li>
-          <li>FAISS performs exact cosine-similarity search over 5,000+ Shopify products</li>
-          <li>Top-5 results are synthesised into a structured answer with relevance scores</li>
-        </ol>
       </div>
     </aside>
 
@@ -91,12 +84,12 @@
         <div class="message bot-message welcome">
           <div class="avatar bot-avatar">R</div>
           <div class="bubble">
-            <p>Hello! I'm <strong>RetailMind AI</strong>, a semantic product search assistant powered by the <strong>Shopify/product-catalogue</strong> dataset — 48,300 real products across fashion, electronics, beauty, sports, home décor, and more.</p>
-            <p>Ask me anything: product recommendations, brand comparisons, materials, use cases, or categories.</p>
+            <p>Hello! I'm <strong>RetailMind AI</strong> — your intelligent customer support knowledge engine.</p>
+            <p>I can answer questions about <strong>warranty coverage</strong>, <strong>return conditions</strong>, <strong>compatibility details</strong>, <strong>order cancellations</strong>, <strong>refund timelines</strong>, and more — all retrieved semantically from a pre-indexed support knowledge base.</p>
             <p class="loading-note" id="indexNote">
-              ⏳ <strong>Building FAISS index in background.</strong>
-              The first run encodes 5,000 products with <em>all-mpnet-base-v2</em>.
-              This takes 3–8 minutes on CPU. Please wait — status shows above.
+              ⏳ <strong>Building HNSW index in background.</strong>
+              Downloading dataset + embedding support documents with <em>all-MiniLM-L6-v2</em>.
+              This takes ~1–3 minutes on first run. Status updates above.
             </p>
           </div>
         </div>
@@ -107,7 +100,7 @@
           <textarea
             id="queryInput"
             class="query-input"
-            placeholder="Describe what you're looking for — product, use case, material, or category…"
+            placeholder="Ask about warranty, returns, compatibility, shipping, or any product support query…"
             rows="1"
           ></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendQuery()" title="Send (Ctrl+Enter)">
@@ -119,7 +112,7 @@
         </div>
         <p class="input-hint">
           <kbd>Ctrl+Enter</kbd> to send &nbsp;·&nbsp;
-          Powered by FAISS + SentenceTransformers + Shopify Dataset
+        
         </p>
       </div>
     </section>
@@ -127,75 +120,60 @@
   </main>
 
   <script>
-  // ── Status polling ─────────────────────────────────────────────────────────
-  const statusDot  = document.getElementById('statusDot');
-  const statusText = document.getElementById('statusText');
-  const indexNote  = document.getElementById('indexNote');
+  // ── Status polling ─────────────────────────────────────────────────
+  const statusDot    = document.getElementById('statusDot');
+  const statusText   = document.getElementById('statusText');
+  const indexNote    = document.getElementById('indexNote');
   const indexedCount = document.getElementById('indexedCount');
-
-  let indexReady = false;
-  let poller;
+  let   indexReady   = false;
+  let   poller;
 
   function pollStatus() {
     fetch('/index-status')
       .then(r => r.json())
       .then(data => {
         if (data.ready) {
-          indexReady = true;
-          statusDot.className   = 'status-dot dot-green';
-          statusText.textContent = `Ready · ${data.stats?.products?.toLocaleString() ?? ''} products`;
+          indexReady             = true;
+          statusDot.className    = 'status-dot dot-green';
+          statusText.textContent = `Ready · ${data.stats?.documents?.toLocaleString() ?? ''} docs`;
           if (indexNote) indexNote.style.display = 'none';
-          if (data.stats?.products) {
-            indexedCount.textContent = data.stats.products.toLocaleString();
-          }
+          if (data.stats?.documents) indexedCount.textContent = data.stats.documents.toLocaleString();
           clearInterval(poller);
         } else if (data.error) {
-          statusDot.className   = 'status-dot dot-red';
+          statusDot.className    = 'status-dot dot-red';
           statusText.textContent = 'Index error';
         } else {
-          statusDot.className   = 'status-dot dot-amber';
+          statusDot.className    = 'status-dot dot-amber';
           statusText.textContent = `Indexing… (${Math.round(data.elapsed ?? 0)}s)`;
         }
       })
       .catch(() => {
-        statusDot.className   = 'status-dot dot-red';
+        statusDot.className    = 'status-dot dot-red';
         statusText.textContent = 'Server offline';
       });
   }
-
   poller = setInterval(pollStatus, 2500);
   pollStatus();
 
-  // ── Chat helpers ───────────────────────────────────────────────────────────
+  // ── Chat helpers ───────────────────────────────────────────────────
   const chatWindow = document.getElementById('chatWindow');
   const queryInput = document.getElementById('queryInput');
   const sendBtn    = document.getElementById('sendBtn');
 
-  function scrollToBottom() {
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-  }
+  function scrollToBottom() { chatWindow.scrollTop = chatWindow.scrollHeight; }
 
   function appendMessage(role, htmlContent) {
     const isBot   = role === 'bot';
     const wrapper = document.createElement('div');
     wrapper.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
-
-    const avatar = document.createElement('div');
-    avatar.className = `avatar ${isBot ? 'bot-avatar' : 'user-avatar'}`;
+    const avatar  = document.createElement('div');
+    avatar.className  = `avatar ${isBot ? 'bot-avatar' : 'user-avatar'}`;
     avatar.textContent = isBot ? 'R' : 'U';
-
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.innerHTML = htmlContent;
-
-    if (isBot) {
-      wrapper.appendChild(avatar);
-      wrapper.appendChild(bubble);
-    } else {
-      wrapper.appendChild(bubble);
-      wrapper.appendChild(avatar);
-    }
-
+    const bubble  = document.createElement('div');
+    bubble.className  = 'bubble';
+    bubble.innerHTML  = htmlContent;
+    isBot ? (wrapper.appendChild(avatar), wrapper.appendChild(bubble))
+          : (wrapper.appendChild(bubble), wrapper.appendChild(avatar));
     chatWindow.appendChild(wrapper);
     scrollToBottom();
     return wrapper;
@@ -204,8 +182,7 @@
   function appendTyping() {
     const w = document.createElement('div');
     w.className = 'message bot-message typing-msg';
-    w.innerHTML = `
-      <div class="avatar bot-avatar">R</div>
+    w.innerHTML = `<div class="avatar bot-avatar">R</div>
       <div class="bubble typing-bubble">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </div>`;
@@ -214,60 +191,48 @@
     return w;
   }
 
-  // Convert the plain-text answer format into structured HTML
-  function formatAnswer(rawAnswer, sources) {
-    const lines  = rawAnswer.split('\n');
-    let   output = '';
+  // Render the structured answer text into rich HTML
+  function formatAnswer(raw, sources) {
+    const lines = raw.split('\n');
+    let html = '';
 
     for (let line of lines) {
       line = line.trim();
-      if (!line) { output += '<br/>'; continue; }
+      if (!line) { html += '<br/>'; continue; }
+      if (line === '---') { html += '<hr/>'; continue; }
 
-      if (line === '---') {
-        output += '<hr/>';
-        continue;
-      }
-
-      // **Bold text** — headings / product names
+      // Bold **text**
       line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-      // Lines that start the product block (numbered)
-      if (/^\d+\./.test(line)) {
-        output += `<div class="result-title">${line}</div>`;
-      } else if (line.startsWith('Brand:') || line.startsWith('Category:') || line.startsWith('Condition:')) {
-        const [key, ...rest] = line.split(':');
-        output += `<div class="result-meta"><span class="meta-key">${key}:</span> ${rest.join(':').trim()}</div>`;
-      } else if (line.startsWith('Relevance:') || line.includes('Relevance:')) {
-        output += `<div class="result-meta">${line}</div>`;
-      } else if (line.startsWith('Details:')) {
-        output += `<div class="result-desc">${line.replace('Details:', '<span class="meta-key">Details:</span>')}</div>`;
+      if (/^\d+\.\s/.test(line)) {
+        html += `<div class="result-title">${line}</div>`;
+      } else if (line.startsWith('Area:') || line.startsWith('Category:') || line.startsWith('Complexity:')) {
+        html += `<div class="result-meta">${line}</div>`;
+      } else if (line.startsWith('Answer:')) {
+        const ans = line.replace('Answer:', '').trim();
+        html += `<div class="result-answer"><span class="ans-label">Answer:</span> ${ans}</div>`;
       } else {
-        output += `<p>${line}</p>`;
+        html += `<p>${line}</p>`;
       }
     }
 
-    // Source tags
     if (sources && sources.length) {
-      output += `<div class="sources"><span class="src-label">Sources:</span> ${
+      html += `<div class="sources"><span class="src-label">Sources:</span> ${
         sources.map(s => `<span class="src-tag">${s}</span>`).join(' ')
       }</div>`;
     }
-
-    return output;
+    return html;
   }
 
-  // ── Send query ─────────────────────────────────────────────────────────────
+  // ── Send query ─────────────────────────────────────────────────────
   async function sendQuery() {
     const query = queryInput.value.trim();
     if (!query) return;
-
     appendMessage('user', `<p>${query}</p>`);
     queryInput.value = '';
     queryInput.style.height = 'auto';
     sendBtn.disabled = true;
-
     const typingEl = appendTyping();
-
     try {
       const resp = await fetch('/ask', {
         method: 'POST',
@@ -276,40 +241,32 @@
       });
       const data = await resp.json();
       typingEl.remove();
-
       if (data.error) {
         appendMessage('bot', `<p class="error-msg">⚠️ ${data.error}</p>`);
       } else {
         appendMessage('bot', formatAnswer(data.answer, data.sources));
       }
-    } catch (err) {
+    } catch {
       typingEl.remove();
       appendMessage('bot', `<p class="error-msg">⚠️ Network error. Is the Flask server running?</p>`);
     }
-
     sendBtn.disabled = false;
   }
 
-  // ── Suggestion chips ───────────────────────────────────────────────────────
   function fillQuery(el) {
     queryInput.value = el.textContent.trim();
     queryInput.focus();
     autoResize();
   }
 
-  // ── Auto-resize textarea ───────────────────────────────────────────────────
   function autoResize() {
     queryInput.style.height = 'auto';
     queryInput.style.height = Math.min(queryInput.scrollHeight, 160) + 'px';
   }
-
   queryInput.addEventListener('input', autoResize);
   queryInput.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      sendQuery();
-    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); sendQuery(); }
   });
   </script>
 </body>
-</html> 
+</html>

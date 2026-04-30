@@ -1,115 +1,146 @@
 """
 data_loader.py
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Dataset  : Shopify/product-catalogue  (Apache-2.0)
-Source   : https://huggingface.co/datasets/Shopify/product-catalogue
-Size     : 48,300 real e-commerce products  (~250 MB parquet)
-Publisher: Shopify Inc. — industry-grade, used in AI/ML research
-Columns used:
-    product_title          – product name
-    product_description    – full marketing description
-    ground_truth_brand     – brand name
-    ground_truth_category  – full taxonomy path  e.g.
-                             "Apparel & Accessories > Clothing > Tops"
-    ground_truth_is_secondhand – bool flag
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Dataset  : rjac/e-commerce-customer-support-qa  (MIT License)
+Source   : https://huggingface.co/datasets/rjac/e-commerce-customer-support-qa
+Size     : 1,000 real customer-support conversations
+Publisher: rjac / HuggingFace Community
+
+WHY THIS DATASET?
+─────────────────
+Directly matches the problem statement:
+  ✔ Warranty coverage queries
+  ✔ Return & cancellation conditions
+  ✔ Compatibility / product specification questions
+  ✔ Shipping & order tracking issues
+  ✔ Payment & account management FAQs
+  ✔ Covers Appliances, Electronics, Clothing categories
+
+COLUMNS USED:
+  issue_area             – top-level topic  (Returns, Warranty, etc.)
+  issue_category         – mid-level topic
+  issue_sub_category     – specific issue
+  product_category       – Electronics / Appliances / Clothing
+  product_sub_category   – specific product (OTG, Monitor, etc.)
+  qa                     – JSON with customer_summary_question +
+                           agent_summary_solution  ← primary RAG content
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
+import json
 from datasets import load_dataset
 
 
-# Maximum products to index.  5_000 gives a rich corpus while staying fast.
-# Raise to 20_000+ for a full production-grade index (takes ~10 min on CPU).
-MAX_PRODUCTS = 5_000
+def _parse_qa(qa_raw):
+    """
+    Extract question + solution from the nested qa JSON field.
+    Returns (question_str, solution_str) or ("", "") on failure.
+    """
+    try:
+        if isinstance(qa_raw, str):
+            qa_obj = json.loads(qa_raw)
+        else:
+            qa_obj = qa_raw
+
+        knowledge = qa_obj.get("knowledge", [])
+        if not knowledge:
+            return "", ""
+
+        first = knowledge[0]
+        question = (first.get("customer_summary_question") or "").strip()
+        solution = (first.get("agent_summary_solution") or "").strip()
+        return question, solution
+    except Exception:
+        return "", ""
 
 
-def _clean(text, max_chars=800):
-    """Strip whitespace and truncate to max_chars."""
+def _clean(text, max_chars=500):
     if not text:
         return ""
-    cleaned = " ".join(str(text).split())
-    return cleaned[:max_chars]
+    return " ".join(str(text).split())[:max_chars]
 
 
 def load_product_data():
     """
-    Loads the Shopify product-catalogue dataset from Hugging Face,
-    builds rich text chunks combining title + brand + category path +
-    description, and returns them for FAISS indexing.
+    Loads the e-commerce customer-support Q&A dataset and builds
+    rich text chunks for HNSW indexing.
+
+    Each chunk encodes:
+      - Issue area & category (semantic topic signal)
+      - Product type (domain signal)
+      - Customer question (what the user asks)
+      - Agent solution (the authoritative answer)
 
     Returns
     -------
-    list[dict]  — each dict has keys:
-        id       (int)   row index
-        text     (str)   rich combined text for embedding
-        source   (str)   short human-readable label shown in the UI
-        meta     (dict)  extra fields (brand, category, etc.)
+    list[dict]  — each dict has:
+        id      (int)   row index
+        text    (str)   rich chunk text for embedding
+        source  (str)   display label shown in UI
+        meta    (dict)  structured metadata for result cards
     """
-    print("=" * 60)
-    print("[data_loader] Dataset : Shopify/product-catalogue")
-    print("[data_loader] License : Apache-2.0  |  Publisher: Shopify Inc.")
-    print("[data_loader] Loading from Hugging Face Hub...")
-    print("=" * 60)
+    print("=" * 65)
+    print("[data_loader] Dataset : rjac/e-commerce-customer-support-qa")
+    print("[data_loader] License : MIT  |  Size: 1,000 support conversations")
+    print("[data_loader] Topics  : Returns · Warranty · Shipping · Payments")
+    print("[data_loader] Loading from Hugging Face Hub ...")
+    print("=" * 65)
 
     dataset = load_dataset(
-        "Shopify/product-catalogue",
+        "rjac/e-commerce-customer-support-qa",
         split="train",
     )
 
-    print(f"[data_loader] Full dataset size : {len(dataset):,} products")
-    print(f"[data_loader] Indexing first    : {MAX_PRODUCTS:,} products")
+    print(f"[data_loader] Loaded {len(dataset):,} records")
 
     chunks = []
-    seen_titles = set()
+    seen = set()
 
     for i, record in enumerate(dataset):
-        if len(chunks) >= MAX_PRODUCTS:
-            break
+        issue_area    = _clean(record.get("issue_area"))
+        issue_cat     = _clean(record.get("issue_category"))
+        issue_sub     = _clean(record.get("issue_sub_category"))
+        prod_cat      = _clean(record.get("product_category"))
+        prod_sub      = _clean(record.get("product_sub_category"))
+        complexity    = _clean(record.get("issue_complexity"))
 
-        title      = _clean(record.get("product_title"))
-        desc       = _clean(record.get("product_description"), max_chars=600)
-        brand      = _clean(record.get("ground_truth_brand"))
-        category   = _clean(record.get("ground_truth_category"))
-        secondhand = record.get("ground_truth_is_secondhand") or False
+        question, solution = _parse_qa(record.get("qa"))
 
-        # Must have at least a title + description to be useful
-        if not title or not desc:
+        # Skip if no useful Q&A content
+        if not question or not solution:
             continue
 
-        # Deduplicate by title to avoid near-identical embeddings
-        title_key = title.lower()
-        if title_key in seen_titles:
+        # Deduplicate by question text
+        q_key = question.lower()[:120]
+        if q_key in seen:
             continue
-        seen_titles.add(title_key)
+        seen.add(q_key)
 
-        # ── Build the rich text chunk ──────────────────────────────────────
-        # This chunk is what gets embedded and searched.
-        # We include every semantic signal: title, brand, taxonomy path,
-        # condition flag, and full description.
+        # ── Build rich text chunk ─────────────────────────────────────
+        # Structured so that both the problem (question) and the
+        # authoritative answer (solution) are embedded together.
+        # This allows semantic retrieval on EITHER query phrasing OR
+        # solution keywords (warranty period, return window, etc.)
         parts = []
 
-        parts.append(f"Product: {title}")
+        if issue_area:
+            parts.append(f"Support Area: {issue_area}")
+        if issue_cat:
+            parts.append(f"Category: {issue_cat}")
+        if issue_sub:
+            parts.append(f"Issue: {issue_sub}")
+        if prod_cat and prod_sub:
+            parts.append(f"Product: {prod_sub} ({prod_cat})")
+        elif prod_cat:
+            parts.append(f"Product Category: {prod_cat}")
 
-        if brand:
-            parts.append(f"Brand: {brand}")
-
-        if category:
-            # Taxonomy path e.g. "Apparel & Accessories > Clothing > Tops"
-            parts.append(f"Category: {category}")
-
-        if secondhand:
-            parts.append("Condition: Pre-owned / Second-hand")
-        else:
-            parts.append("Condition: New")
-
-        if desc:
-            parts.append(f"Description: {desc}")
+        parts.append(f"Customer Question: {question}")
+        parts.append(f"Support Answer: {solution}")
 
         full_text = "\n".join(parts)
 
-        # ── Short label shown in the UI ────────────────────────────────────
-        brand_tag = f" by {brand}" if brand else ""
-        source    = f"{title}{brand_tag}"
+        # Source label shown in the UI result cards
+        source = f"{issue_sub or issue_cat} — {prod_sub or prod_cat}"
         if len(source) > 80:
             source = source[:77] + "..."
 
@@ -118,28 +149,28 @@ def load_product_data():
             "text":   full_text,
             "source": source,
             "meta": {
-                "title":    title,
-                "brand":    brand or "Unknown",
-                "category": category or "Uncategorized",
-                "new":      not secondhand,
+                "issue_area":  issue_area  or "General",
+                "category":    issue_cat   or "—",
+                "issue":       issue_sub   or issue_cat or "—",
+                "product":     prod_sub    or prod_cat or "—",
+                "complexity":  complexity  or "—",
+                "question":    question,
+                "answer":      solution,
             },
         })
 
-    print(f"[data_loader] Prepared {len(chunks):,} product chunks for indexing.")
+    print(f"[data_loader] ✓ Prepared {len(chunks):,} unique Q&A chunks for indexing.")
     return chunks
 
 
 if __name__ == "__main__":
     chunks = load_product_data()
-
-    print("\n" + "-" * 60)
+    print("\n" + "─" * 65)
     print("SAMPLE CHUNK #1")
-    print("-" * 60)
+    print("─" * 65)
     print(chunks[0]["text"])
-
-    print("\n" + "-" * 60)
-    print("SAMPLE CHUNK #500")
-    print("-" * 60)
-    print(chunks[min(500, len(chunks) - 1)]["text"])
-
+    print("\n" + "─" * 65)
+    print("SAMPLE CHUNK #50")
+    print("─" * 65)
+    print(chunks[min(50, len(chunks) - 1)]["text"])
     print(f"\nTotal indexable chunks: {len(chunks):,}")

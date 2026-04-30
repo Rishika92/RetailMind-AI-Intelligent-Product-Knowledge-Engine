@@ -1,57 +1,61 @@
 """
 app.py
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Flask backend for RetailMind AI — Semantic Product Knowledge Engine.
 
-Routes
-------
-GET  /              → Chat UI (index.html)
-POST /ask           → Accepts {query} JSON, returns RAG answer
-GET  /index-status  → Returns index readiness + stats
-GET  /health        → Liveness probe
+Problem Statement:
+  A mid-sized e-commerce company maintains thousands of product
+  descriptions, specifications, and FAQs. Customer support agents
+  frequently need to search through multiple files to answer queries
+  about warranty coverage, compatibility details, or return conditions.
+  The current keyword-based search fails due to inconsistent wording.
+  This system provides semantic search + RAG over a pre-indexed
+  customer-support knowledge base using HNSW vector indexing.
 
-Startup behaviour
------------------
-On first request the FAISS index is built in a background daemon thread
-so that Flask starts immediately. The /index-status endpoint is polled
-by the frontend every 2.5 s and turns green when the index is ready.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Routes
+──────
+GET  /              → Chat UI
+POST /ask           → { query, top_k? } → { answer, sources }
+GET  /index-status  → Index readiness + stats
+GET  /health        → Liveness probe
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import threading
 import time
-
 from flask import Flask, render_template, request, jsonify
 from rag_pipeline import ask, ensure_index, _chunks
 
 app = Flask(__name__)
 
-# ── Index loading state ────────────────────────────────────────────────────────
+# ── Index loading state ─────────────────────────────────────────────────
 _index_ready  = False
 _index_error  = None
-_index_stats  = {}       # populated once index is built
+_index_stats  = {}
 _load_start   = time.time()
 
 
 def _preload_index():
     global _index_ready, _index_error, _index_stats
     try:
-        print("\n[app] ── Pre-loading FAISS index in background ──")
+        print("\n[app] ── Building HNSW index in background ──")
         ensure_index()
         _index_stats = {
-            "products": len(_chunks) if _chunks else 0,
-            "model":    "sentence-transformers/all-mpnet-base-v2",
-            "dataset":  "Shopify/product-catalogue (Apache-2.0)",
-            "elapsed_s": round(time.time() - _load_start, 1),
+            "documents":  len(_chunks) if _chunks else 0,
+            "model":      "sentence-transformers/all-MiniLM-L6-v2",
+            "index_type": "HNSW (hnswlib) — M=32, ef=200",
+            "dataset":    "rjac/e-commerce-customer-support-qa (MIT)",
+            "topics":     "Returns · Warranty · Shipping · Payments · Account",
+            "elapsed_s":  round(time.time() - _load_start, 1),
         }
         _index_ready = True
-        print(f"[app] Index ready ✓  ({_index_stats['products']:,} products indexed)")
+        print(f"[app] Index ready ✓  ({_index_stats['documents']:,} documents indexed)")
     except Exception as exc:
         _index_error = str(exc)
         print(f"[app] Index build failed: {exc}")
 
 
-# Launch background loader immediately at import time
+# Start background loader immediately
 threading.Thread(target=_preload_index, daemon=True).start()
 
 
@@ -73,7 +77,6 @@ def health():
 def index_status():
     if _index_error:
         return jsonify({"ready": False, "error": _index_error}), 500
-
     elapsed = round(time.time() - _load_start, 1)
     return jsonify({
         "ready":   _index_ready,
@@ -84,32 +87,30 @@ def index_status():
 
 @app.route("/ask", methods=["POST"])
 def ask_route():
-    # ── Guard: index not ready ────────────────────────────────────────
+    # Guard: index not ready
     if not _index_ready:
         if _index_error:
             return jsonify({"error": f"Index failed: {_index_error}"}), 500
         elapsed = round(time.time() - _load_start, 1)
         return jsonify({
             "error": (
-                f"Index is still loading ({elapsed}s elapsed). "
+                f"Knowledge base is still loading ({elapsed}s elapsed). "
                 "Please wait a moment and try again."
             )
         }), 503
 
-    # ── Parse request ─────────────────────────────────────────────────
+    # Parse request
     data  = request.get_json(force=True, silent=True) or {}
     query = str(data.get("query") or "").strip()
 
     if not query:
         return jsonify({"error": "Query cannot be empty."}), 400
-
     if len(query) > 600:
         return jsonify({"error": "Query too long (max 600 characters)."}), 400
 
     top_k = int(data.get("top_k", 5))
-    top_k = max(1, min(top_k, 10))   # clamp to [1, 10]
+    top_k = max(1, min(top_k, 10))
 
-    # ── Run RAG pipeline ─────────────────────────────────────────────
     try:
         result = ask(query, top_k=top_k)
         return jsonify({
@@ -117,8 +118,8 @@ def ask_route():
             "sources": result["sources"],
         })
     except Exception as exc:
-        app.logger.exception("Error in /ask route")
-        return jsonify({"error": "An internal error occurred. Please try again."}), 500
+        app.logger.exception("Error in /ask")
+        return jsonify({"error": "Internal error. Please try again."}), 500
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -126,11 +127,12 @@ def ask_route():
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if __name__ == "__main__":
-    print("\n" + "=" * 62)
+    print("\n" + "=" * 65)
     print("  RetailMind AI  —  Semantic Product Knowledge Engine")
-    print("  Dataset  : Shopify/product-catalogue  (48k products)")
-    print("  Embedding: sentence-transformers/all-mpnet-base-v2")
-    print("  Index    : FAISS IndexFlatIP (cosine similarity)")
-    print("  URL      : http://127.0.0.1:5000")
-    print("=" * 62 + "\n")
+    print("  Problem: Warranty · Returns · Compatibility · FAQs")
+    print("  Dataset: rjac/e-commerce-customer-support-qa (1k docs)")
+    print("  Index  : HNSW via hnswlib (M=32, cosine similarity)")
+    print("  Model  : sentence-transformers/all-MiniLM-L6-v2 (384-dim)")
+    print("  URL    : http://127.0.0.1:5000")
+    print("=" * 65 + "\n")
     app.run(debug=False, host="0.0.0.0", port=5000)
